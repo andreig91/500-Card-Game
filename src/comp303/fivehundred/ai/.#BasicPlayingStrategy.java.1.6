@@ -1,0 +1,142 @@
+package comp303.fivehundred.ai;
+
+import comp303.fivehundred.model.BasicSmartHand;
+import comp303.fivehundred.model.Hand;
+import comp303.fivehundred.model.Trick;
+import comp303.fivehundred.util.Card;
+import comp303.fivehundred.util.Card.Joker;
+import comp303.fivehundred.util.CardList;
+import java.util.Iterator;
+
+
+/**
+ * @author Amjad Al-Rikabi
+ *
+ */
+public class BasicPlayingStrategy implements IPlayingStrategy
+{
+	/**
+	 * Selects a card to be played by the player. This method should have no
+	 * side effect, i.e., it should not remove any cards from Hand.
+	 * If leading, picks a card at random except jokers if playing in no trump. 
+	 * If following, choose the lowest card that can follow suit and win. 
+	 * If no card can follow suit and win, picks the lowest card that can follow suit. 
+	 * If no card can follow suit, picks the lowest trump card that can win. 
+	 * If there are no trump card or the trump cards can’t win (because the trick was already trumped), 
+	 * then picks the lowest card. If a joker was led, dump the lowest card 
+	 * unless it can be beaten with the high joker according to the rules of the game.
+	 * 
+	 * @param pTrick Cards played so far in the trick. Note that the 
+	 * number of cards in pTrick determines the playing order of the player. For 
+	 * example, if pTrick.size() == 0, the player leads. If pTrick.size() == 1, he plays
+	 * second, etc.
+	 * @param pHand The hand of the player to play.
+	 * @return One of the cards in pHand. The card must be a legal play, that is, follow suit
+	 * if possible.
+	 * 
+	 * @pre pTrick != null
+	 * @pre pHand != null
+	 */
+	public Card play(Trick pTrick, Hand pHand)
+	{
+		assert pTrick != null;
+		assert pHand != null;
+		BasicSmartHand aSmartHand = new BasicSmartHand(pHand);
+
+		//TODO What about keeping local variables for trump suit and suit led?
+		//CHECK IF WE ARE LEADING:
+		if (pTrick.size() == 0)
+		{
+			//Check if playing in no trump:
+			if (pTrick.getTrumpSuit() == null)
+			{
+				//Pick a random card not including the joker
+				return pHand.canLead(true).random();
+			}
+			else //if playing in trump
+			{
+				//Pick a random card including the joker
+				return pHand.canLead(false).random();
+			}
+		}
+		//NOT LEADING: WE ARE FOLLOWING
+		else
+		{
+			//Do we have a Joker
+			CardList aPresentJokers = pHand.getJokers();
+			//Do we have Trump Cards
+			CardList aTrumpCards = pHand.getTrumpCards(pTrick.getTrumpSuit());
+			//Retrieve nonTrumpCards:
+			if (pTrick.getTrumpSuit() != null)
+			{
+				CardList aNonTrumpCards = pHand.getNonTrumpCards(pTrick.getTrumpSuit());
+			}
+			//Select which cards to play in hand
+			CardList aPlayableCards = pHand.playableCards(pTrick.getSuitLed(), pTrick.getTrumpSuit());
+
+			//If highest card in the trick is the low joker and we have the high joker
+			if (pTrick.highest().getJokerValue().equals(Joker.LOW) && aPresentJokers.getFirst().getJokerValue().equals(Joker.HIGH))
+			{
+				return aPresentJokers.getFirst();
+			}
+			// If highest card in the trick is a Joker
+			else if (pTrick.highest().isJoker())
+			{
+				return aSmartHand.getLowestLeadSuitCard(pTrick.getSuitLed(), pTrick.getTrumpSuit());
+			}
+			//NO JOKERS IN TRICK
+			//If we can follow suit
+			else if (aSmartHand.canWeFollowLeadSuit(pTrick.getSuitLed(), pTrick.getTrumpSuit()))
+			{
+				boolean aCanWeWin = false;
+				BasicSmartHand aSmartHandFollowSuit = new BasicSmartHand(aPlayableCards);
+				aPlayableCards = aPlayableCards.sort(new Trick.BySuitLeadComparator(pTrick.getSuitLed()));
+				Trick aTestTrick = new Trick(pTrick.getBid());
+				Iterator<Card> aSmartHandItr = aPlayableCards.iterator();
+				Card aTestCard = null;
+				
+				while ((aSmartHandFollowSuit.size() > 0) && aSmartHandItr.hasNext())
+				{
+					aTestCard = aSmartHandItr.next();
+					aTestTrick.add(aTestCard);
+					if (aTestTrick.highest().equals(aTestCard))
+					{
+						aCanWeWin = true;
+						break;
+					}
+				}
+				
+				if (aCanWeWin)
+				{
+					assert aTestCard != null;
+					return aTestCard;
+				}
+				else
+				{
+					return aSmartHandFollowSuit.getLowestLeadSuitCard(pTrick.getSuitLed(), pTrick.getTrumpSuit());
+				}
+			}
+
+			//WE CANNOT FOLLOW SUIT
+			//If we have a Joker:
+			else if(aPresentJokers.size() > 0)
+			{
+				return aPresentJokers.getFirst();
+			}
+			
+			//If we have a trump:
+			else if (aTrumpCards.size() > 0)
+			{
+				BasicSmartHand aSmartHandTrump = new BasicSmartHand(aTrumpCards);
+				//Return the smallest value trump suit:
+				return aSmartHandTrump.getLowestLeadSuitCard(pTrick.getTrumpSuit(), pTrick.getTrumpSuit());
+			}
+
+			//No card can win:
+			else
+			{
+				return aSmartHand.selectLowest(pTrick.getTrumpSuit());
+			}
+		}
+	}
+}

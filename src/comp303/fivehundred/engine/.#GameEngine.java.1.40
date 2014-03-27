@@ -1,0 +1,620 @@
+package comp303.fivehundred.engine;
+import java.util.Observable;
+import comp303.fivehundred.model.Bid;
+import comp303.fivehundred.model.Hand;
+import comp303.fivehundred.model.Player;
+import comp303.fivehundred.model.Trick;
+import comp303.fivehundred.util.Card;
+import comp303.fivehundred.util.CardList;
+import comp303.fivehundred.util.Constants;
+import comp303.fivehundred.util.Deck;
+
+/**
+ * @author JB
+ */
+public class GameEngine extends Observable
+{
+	private Player[] aPlayers;
+	private Hand[] aHands;
+	private Bid[] aBids;
+	
+	
+	private int[] aTricksWon;
+	private int aHumanPlayerIndex;
+	
+	private int[] aScores;
+	private int[] numberOfGamesWon = new int[2];
+	private int[] numberOfTricksWon = new int[4];
+	private int[] numberOfBidsWon = new int[4];
+	private int[] numberBidsAccomplished = new int[2];
+	private int[] totalScore = new int[2];
+	
+	private Bid aWinningBid;
+	private Trick aTrick;
+	private Deck aDeck;
+	
+	private String aLog;
+
+	//private String aStats;
+	private int aWinnerIndex;
+
+	private int aNumberOfTricksPlayed;
+
+	
+	private int aDealerIndex;
+	private int aBidderPositionIndex;
+	private int aBidWinnerIndex;
+	private int aLastContractWinner;
+	
+	private int aTrickLeaderIndex;
+	private int aTrickPositionIndex;
+	private int aNumberOfRounds;
+	
+	/**
+	 * The constructor for the GameEngine takes as input 4 player objects. It creates a players 
+	 * array of size 4 and stores the players given as parameters in the array. It then pass the 
+	 * control to the initializeGame() method. 
+	 * @param pPlayer1 The first player
+	 * @param pPlayer2 The second player
+	 * @param pPlayer3 The third player
+	 * @param pPlayer4 The fourth player
+	 */
+	public GameEngine(Player pPlayer1, Player pPlayer2, Player pPlayer3, Player pPlayer4 )
+	{
+		aPlayers = new Player[4];
+		aPlayers[0] = pPlayer1;
+		aPlayers[1] = pPlayer2;
+		aPlayers[2] = pPlayer3;
+		aPlayers[3] = pPlayer4;
+		initializeGame();
+	}
+	
+	/**
+	 * This method is called only once per game. It reinitializes all the values 
+	 * that have modified during the previous game. It makes sure that all games
+	 * start with the same initial values and that no value gets carried over from
+	 * the previous game. The only this that is not reinitialized is the players array
+	 * The same player array will be used for all the games that are run using the 
+	 * same GameEngine object. If changing the AI Strategy type or changing a player's 
+	 * name or changing the position of the human player is required, a new game engine
+	 * object needs to be instantiated.
+	 */
+	public void initializeGame( ) 
+	{
+		aScores = new int[2];
+		aHumanPlayerIndex = getHumanPlayerIndex();	
+		aDealerIndex = -1;
+		aBidderPositionIndex = -1;
+		aNumberOfRounds = 0;
+		aNumberOfTricksPlayed = 0;
+		initializeRound();
+		setRandomDealer();
+		aLog = "Game Initialized. Initial Dealer: " + aPlayers[aDealerIndex].getName() + "\n";
+		setChanged();
+		notifyObservers();
+		aLog = "========================NEW GAME==========================\n";
+		setChanged();
+		notifyObservers();
+	}
+	
+	/**
+	 * 
+	 */
+	private void setRandomDealer()
+	{
+		aDealerIndex = 0;
+		//TODO Random dealer
+	}
+	
+	/**
+	 * 
+	 */
+	public void initializeRound()
+	{
+		aBids = new Bid[0];
+		aWinningBid = null;
+		aHands = new Hand[4];
+		aTricksWon = new int[4];
+		aTrick = null;
+		aDeck = new Deck();
+		aHands = new Hand[4];
+		aBidWinnerIndex = -1;
+		aLastContractWinner = -1;
+		aTrickLeaderIndex = -1;
+		aTrickPositionIndex = -1;
+		aNumberOfTricksPlayed = 0;
+		countRounds();
+	}
+	
+	/**
+	 * 
+	 */
+	public void configureAI( )
+	{
+		
+	}
+	
+	/**
+	 * 
+	 */
+	public void deal( )
+	{
+		aLog = "***********************NEW DEAL**************************\n";
+		setChanged();
+		notifyObservers();
+		aLog = "Dealer is: " + aPlayers[aDealerIndex].getName() + "\n";
+		setChanged();
+		notifyObservers();
+		aLog = "Players delt cards\n";
+		setChanged();
+		notifyObservers();
+		aDeck = new Deck();
+		aHands = new Hand[4];
+		for(int i = 0; i < 4; i++)
+		{
+			aHands[i] = new Hand();
+		}
+		aDeck.shuffle();
+		for(int i = 0; i < Constants.HAND_SIZE; i++)
+		{
+			for(int j = 0; j < 4; j++)
+			{
+				Card aCard = aDeck.draw();
+				aHands[(j + 1) % 4].add(aCard);
+			}
+		}
+		for(int j = 0; j < 4; j++)
+		{
+			aLog = getHandString(j) + "\n";
+			setChanged();
+			notifyObservers();
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	public void bidBeforeHuman( )
+	{
+		aBids = new Bid[0];
+		aBidderPositionIndex = (aDealerIndex + 1) % 4;
+		aLog = "";
+		int i = 0;
+		while( aBidderPositionIndex != aHumanPlayerIndex && i < 4)
+		{
+			Bid aBid = aPlayers[aBidderPositionIndex].getPlayerType().selectBid(aBids, aHands[aBidderPositionIndex]);
+			aBids = increaseArraySize(aBids);
+			aBids[aBids.length-1] = aBid;
+			aLog = aPlayers[aBidderPositionIndex].getName() + " Bid " + aBid.toString() + "\n";
+			i++;
+			incrementBidderPosition();
+			setChanged();
+			notifyObservers();
+		}
+	}
+	
+	/**
+	 * 
+	 * @param pBid 
+	 */
+	public void humanBid(Bid pBid)
+	{
+		aBids[aBidderPositionIndex] = pBid;
+		aLog = aPlayers[aBidderPositionIndex].getName() + " Bid " + pBid.toString() + "\n";
+		setChanged();
+		notifyObservers();
+		incrementBidderPosition();
+		bidAfterHuman();
+	}
+	
+	/**
+	 * 
+	 */
+	public void bidAfterHuman()
+	{
+		// The difference between dealerIndex and bidPositionIndex is the number of remaining AI players before finishing with 
+		// the dealer itself. Here this number could be negative, so we have to add 4 for the difference to represent the number
+		// of players. We still have to add 1 for the dealer. 
+		int aRemainingAIPlayers = (aDealerIndex - aBidderPositionIndex + 4 + 1) % 4;
+		for( int i = 0; i< aRemainingAIPlayers; i++)
+		{
+			Bid aBid = aPlayers[aBidderPositionIndex].getPlayerType().selectBid(aBids, aHands[aBidderPositionIndex]);
+			aBids = increaseArraySize(aBids);
+			aBids[aBids.length-1] = aBid;
+			aLog = aPlayers[aBidderPositionIndex].getName() + " Bid " + aBid.toString() + "\n";
+			incrementBidderPosition();
+			setChanged();
+			notifyObservers();
+		}
+	}
+	
+	/**
+	 * 
+	 * @param pArray 
+	 * @return a new bid array of size one higher that pArray
+	 */
+	public static Bid[] increaseArraySize(Bid[] pArray)
+	{      
+		Bid[] newList = new Bid[pArray.length + 1];  
+		for (int j = 0; j < pArray.length; j++ )
+		{  
+			newList[j] = pArray[j];
+		}  
+		return newList;  
+	}
+	
+	/**
+	 * 
+	 * @return true if all bids are passing bids, otherwise returns false
+	 */
+	public boolean allPasses()
+	{
+		for(int i = 0; i < 4; i++)
+		{
+			if(!aBids[i].isPass())
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * 
+	 */
+	public void determineWinningBid()
+	{
+		//TODO If time, give each player its bid and compare the bid to each player instead to get the index. 
+		aWinningBid = Bid.max(aBids);
+		
+		for(int i = 0; i < 4; i++)
+		{
+			if(aBids[i] == aWinningBid)
+			{
+				aBidWinnerIndex = i;
+			}
+		}
+		// Offset the BidWinnerIndex to represent the index in the players' array, instead of the index in the aBids.
+		// TODO comment why it works
+		aBidWinnerIndex = (aBidWinnerIndex + aDealerIndex + 1) % 4;
+		// The one to start the first trick will be the winning bidder
+		aTrickLeaderIndex = aBidWinnerIndex;
+		aLog = aPlayers[aBidWinnerIndex].getName() + " Has the winning bid: " + aWinningBid.toString() + "\n";
+		setChanged();
+		notifyObservers();
+	}
+	
+	/**
+	 * 
+	 */
+	public void exchange( )
+	{
+
+		numberOfBidsWon[aBidWinnerIndex] ++;
+
+		aLog = "The widow containing: ";
+
+		for(int j = 0; j < Constants.EXCHANGE_NUMBER_OF_CARDS; j++)
+		{
+			Card aCard = aDeck.draw();
+			aLog += aCard.toShortString() + " ";
+			aHands[aBidWinnerIndex].add(aCard);
+		}
+		aLog += "is added to " + aPlayers[aBidWinnerIndex].getName() + "'s hand\n";
+		setChanged();
+		notifyObservers();
+		if(aHumanPlayerIndex != aBidWinnerIndex)
+		{
+			CardList aCardList = aPlayers[aBidWinnerIndex].getPlayerType().selectCardsToDiscard(aBids, aBidWinnerIndex, aHands[aBidWinnerIndex]);
+			aLog = aPlayers[aBidWinnerIndex].getName() + " discards " + aCardList.toString() + "\n";
+			setChanged();
+			notifyObservers();
+			aLog = getHandString(aBidWinnerIndex) + "\n";
+			setChanged();
+			notifyObservers();
+		}
+	}
+	
+	/**
+	 * @param pCardList 
+	 * Will not be used for Milestone 2
+	 */
+	public void humanExchange(CardList pCardList)
+	{
+		for(Card aCard : pCardList)
+		{
+			aHands[aBidWinnerIndex].remove(aCard);
+		}
+		aLog = aPlayers[aBidWinnerIndex].getName() + " discards " + pCardList.toString() + "\n";
+		setChanged();
+		notifyObservers();
+		aLog = getHandString(aBidWinnerIndex) + "\n";
+		setChanged();
+		notifyObservers();
+	}
+	
+	/**
+	 * 
+	 * @return the Bids for this game
+	 */
+	public Bid[] getBids()
+	{
+		return null;
+	}
+	
+	/**
+	 * 
+	 */
+	public void playTrickBeforeHuman()
+	{
+		aNumberOfTricksPlayed++;
+		aLog = "--------------------TRICK " + aNumberOfTricksPlayed + "---------------------\n"; 
+		setChanged();
+		notifyObservers();
+		aTrick = new Trick(aWinningBid);
+		Card aCard;
+		int i = 0;
+		aTrickPositionIndex = aTrickLeaderIndex;
+		while(aTrickPositionIndex != aHumanPlayerIndex && i < 4)
+		{
+			aLog = getHandString(aTrickPositionIndex);
+			aCard = aPlayers[aTrickPositionIndex].getPlayerType().play(aTrick, aHands[aTrickPositionIndex]);
+			aTrick.add(aCard);
+			aHands[aTrickPositionIndex].remove(aCard);
+			aLog += " plays " + aCard.toString() + "\n";
+			setChanged();
+			notifyObservers();
+			i++;
+			incrementPlayerPosition();
+		}
+		if(aHumanPlayerIndex == -1)
+		{
+			determineTrickWinner();
+		}
+	}
+	
+	/**
+	 * 
+	 * @param pCard 
+	 */
+	public void humanPlayTrick(Card pCard)
+	{
+		aTrick.add(pCard);
+		aHands[aTrickPositionIndex].remove(pCard);
+		aLog = getHandString(aTrickPositionIndex);
+		aLog += " plays " + pCard.toString() + "\n";
+		incrementPlayerPosition();
+		playTrickAfterHuman();
+	}
+	
+	/**
+	 * 
+	 */
+	public void playTrickAfterHuman()
+	{
+		aNumberOfTricksPlayed++;
+		aLog = "--------------------TRICK " + aNumberOfTricksPlayed + "---------------------\n"; 
+		setChanged();
+		notifyObservers();
+		int aRemainingAIPlayers = (aTrickLeaderIndex - aTrickPositionIndex + 4) % 4;
+		for( int i = 0; i< aRemainingAIPlayers; i++)
+		{
+			aLog = getHandString(aTrickPositionIndex);
+			Card aCard = aPlayers[aTrickPositionIndex].getPlayerType().play(aTrick, aHands[aTrickPositionIndex]);
+			aTrick.add(aCard);
+			aHands[aTrickPositionIndex].remove(aCard);
+			aLog += " plays " + aCard.toString() + "\n";
+			setChanged();
+			notifyObservers();
+			incrementPlayerPosition();
+		}
+		determineTrickWinner();
+	}
+	
+	/**
+	 * 
+	 */
+	public void determineTrickWinner()
+	{
+		aTrickLeaderIndex = aTrick.winnerIndex();
+		aLog = aPlayers[aTrickLeaderIndex].getName() + " Won the trick\n";
+		setChanged();
+		notifyObservers();
+		aTricksWon[aTrickLeaderIndex]++;
+	}
+	
+	/**
+	 * 
+	 */
+	public void computeScore()
+	{
+		aLog = "--------------------SCORING--------------------\n";
+		setChanged();
+		notifyObservers();
+		int[] aTeamTricks = {aTricksWon[0] + aTricksWon[2], aTricksWon[1] + aTricksWon[3]};
+		numberOfTricksWon[0] = numberOfTricksWon[0] + aTricksWon[0];
+		numberOfTricksWon[1] = numberOfTricksWon[1] + aTricksWon[1];
+		numberOfTricksWon[2] = numberOfTricksWon[2] + aTricksWon[2];
+		numberOfTricksWon[3] = numberOfTricksWon[3] + aTricksWon[3];
+		
+		int aContractPoints = aWinningBid.getScore();
+		int aTeamWonBid = 0;
+		aLog = aPlayers[aBidWinnerIndex].getName() + " Has the contract of " + aWinningBid.toString() + "\n";
+		setChanged();
+		notifyObservers();
+		aLog = aPlayers[0].getName() + " and " + aPlayers[2].getName() + " won " + aTeamTricks[0] + "\n";
+		setChanged();
+		notifyObservers();
+		aLog = aPlayers[1].getName() + " and " + aPlayers[3].getName() + " won " + aTeamTricks[1] + "\n";
+		
+		aTeamWonBid = (aBidWinnerIndex +2) % 2;
+		setChanged();
+		notifyObservers();
+		if(aTeamWonBid == 0)
+		{
+			if(aTeamTricks[0] >= aWinningBid.getTricksBid())
+			{
+				numberBidsAccomplished[0] ++;
+				aLog = aPlayers[0].getName() + " and " + aPlayers[2].getName() + " make their contract!\n";
+				setChanged();
+				notifyObservers();
+				aLog = "Contractors round score: " + aContractPoints + "\n";
+				
+				aScores[0] = aScores[0] + aContractPoints;
+				aScores[1] = aScores[1] + aTeamTricks[1] * Constants.NUMBER_POINTS_PER_TRICK;
+				aLastContractWinner = 1;
+				
+				setChanged();
+				notifyObservers();
+			}
+			else
+			{
+				aLog = aPlayers[0].getName() + " and " + aPlayers[2].getName() + " didn't make their contract\n";
+				setChanged();
+				notifyObservers();
+				aLog = "Contractors round score: " + "-" + aContractPoints + "\n";
+				setChanged();
+				notifyObservers();
+				
+				aScores[0] = aScores[0] - aContractPoints;
+				aScores[1] = aScores[1] + aTeamTricks[1] * Constants.NUMBER_POINTS_PER_TRICK;
+				aLastContractWinner = 0;
+			}
+			aLog = "Defenders round score: " + aTeamTricks[0] * Constants.NUMBER_POINTS_PER_TRICK + "\n";
+			setChanged();
+			notifyObservers();
+		}
+		else
+		{
+			if(aTeamTricks[1] >= aWinningBid.getTricksBid())
+			{
+				numberBidsAccomplished[1] ++;
+				aLog = aPlayers[1].getName() + " and " + aPlayers[3].getName() + " make their contract!\n";
+				setChanged();
+				notifyObservers();
+				aLog = "Contractors round score: " + aContractPoints + "\n";
+				setChanged();
+				notifyObservers();
+				
+				aScores[1] = aScores[1] + aContractPoints;
+				aScores[0] = aScores[0] + aTeamTricks[0] * Constants.NUMBER_POINTS_PER_TRICK;
+				aLastContractWinner = 2;
+			}
+			else
+			{
+				aLog = aPlayers[1].getName() + " and " + aPlayers[3].getName() + " didn't make their contract\n";
+				setChanged();
+				notifyObservers();
+				aLog = "Contractors round score: " + "-" + aContractPoints + "\n";
+				setChanged();
+				notifyObservers();
+				
+				aScores[1] = aScores[1] - aContractPoints;
+				aScores[0] = aScores[0] + aTeamTricks[0] * Constants.NUMBER_POINTS_PER_TRICK;
+				aLastContractWinner = 0;
+			}
+			aLog = "Defenders round score: " + aTeamTricks[0] * Constants.NUMBER_POINTS_PER_TRICK + "\n";
+			setChanged();
+			notifyObservers();
+			aDealerIndex++;
+			aDealerIndex = aDealerIndex % 4;
+			aBidderPositionIndex = aDealerIndex +1;
+		}
+		aLog = "Team 1 overall score: " + aScores[1] + "\n";
+		setChanged();
+		notifyObservers();
+		aLog = "Team 0 overall score: " + aScores[0] + "\n";
+		setChanged();
+		notifyObservers();
+	}
+	
+	/**
+	 * 
+	 * @return wether the game is over
+	 */
+	public boolean isGameOver()
+	{
+		if(aScores[0] >= Constants.WINNING_SCORE && aLastContractWinner == 1 )
+		{
+			totalScore[0] = aScores[0];		
+			numberOfGamesWon[0] ++;
+	
+			return true;
+		}
+		if(aScores[1] >= Constants.WINNING_SCORE && aLastContractWinner == 2 )
+		{
+			totalScore[1] = aScores[1];	
+			numberOfGamesWon[1] ++;
+			
+			return true;
+		}
+		return false;
+	}
+	
+	@Override
+	public void notifyObservers()
+	{
+		super.notifyObservers(aLog);
+	}
+	
+	/**
+	 * 
+	 */
+	public void incrementBidderPosition()
+	{
+		aBidderPositionIndex = (aBidderPositionIndex + 1) % 4;		
+	}
+	
+	/**
+	 *
+	 */
+	public void incrementPlayerPosition()
+	{
+			aTrickPositionIndex = (aTrickPositionIndex + 1) % 4;
+	}
+	
+	/**
+	 * 
+	 * @return the index of the human player. Return -1 if there is no human player in the game
+	 */
+	public int getHumanPlayerIndex()
+	{
+		for(int i = 0; i < 4; i++)
+		{
+			if(aPlayers[i].isHuman())
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+	
+	/**
+	 * 
+	 * @param pIndex 
+	 * @return A string representation of the cards in the hand of player at position pIndex
+	 */
+	public String getHandString(int pIndex)
+	{
+		String aString;
+		aString = aPlayers[pIndex].getName() + " cards: " + aHands[pIndex].toString();
+		return aString;
+	}
+	
+	/**
+	 * Increments the number of rounds played so far in the game. 
+	 */
+	public void countRounds()
+	{
+		aNumberOfRounds++;
+	}
+	
+	/**
+	 * 
+	 * @return the number of rounds played so far in the game.
+	 */
+	public int getRoundCount()
+	{
+		return aNumberOfRounds;
+	}
+}

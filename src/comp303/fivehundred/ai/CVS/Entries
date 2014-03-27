@@ -1,0 +1,16 @@
+/AIException.java/1.5/Sun Nov 25 22:43:34 2012//
+/AdvancedBiddingStrategy.java/1.1/Mon Nov 12 01:31:20 2012//
+/AdvancedCardExchangeStrategy.java/1.4/Mon Nov 26 04:34:41 2012//
+/AdvancedPlayingStrategy.java/1.2/Sun Nov 25 20:50:06 2012//
+/BasicBiddingStrategy.java/1.40/Sun Nov 25 22:43:34 2012//
+/BasicCardExchangeStrategy.java/1.15/Mon Oct 29 21:26:12 2012//
+/BasicPlayingStrategy.java/1.28/Mon Oct 29 21:26:12 2012//
+/BasicRobot.java/1.2/Sun Nov 25 22:43:34 2012//
+/IBiddingStrategy.java/1.2/Sat Sep 29 15:50:55 2012//
+/ICardExchangeStrategy.java/1.1/Wed Sep 19 21:00:47 2012//
+/IPlayingStrategy.java/1.1/Wed Sep 19 21:00:47 2012//
+/IRobotPlayer.java/1.1/Wed Sep 19 21:00:47 2012//
+/RandomBiddingStrategy.java/1.11/Sun Nov 25 22:43:34 2012//
+/RandomCardExchangeStrategy.java/1.9/Sat Oct 27 06:18:10 2012//
+/RandomPlayingStrategy.java/1.9/Fri Oct 26 03:43:23 2012//
+/RandomRobot.java/1.1/Wed Sep 19 21:00:47 2012//
